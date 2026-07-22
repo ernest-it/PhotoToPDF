@@ -1,0 +1,145 @@
+'use strict';
+
+// Renderer: manages the ordered list of image paths and drives the main process.
+// No Node access here — everything goes through window.api (see preload.js).
+
+const IMAGE_RE = /\.(jpe?g|png|gif|bmp|tiff?|webp)$/i;
+
+let files = []; // ordered array of absolute paths
+
+const $ = (id) => document.getElementById(id);
+const dropzone = $('dropzone');
+const filelist = $('filelist');
+const countEl = $('count');
+const clearBtn = $('clearBtn');
+const createBtn = $('createBtn');
+const resultEl = $('result');
+const progressEl = $('progress');
+
+function basename(p) {
+  const parts = p.split(/[\\/]/);
+  return parts[parts.length - 1] || p;
+}
+
+function addPaths(paths) {
+  let added = 0;
+  for (const p of paths) {
+    if (!p || !IMAGE_RE.test(p)) continue;
+    if (files.includes(p)) continue; // no duplicates
+    files.push(p);
+    added++;
+  }
+  if (added) render();
+}
+
+function removeAt(i) { files.splice(i, 1); render(); }
+function move(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= files.length) return;
+  const tmp = files[i]; files[i] = files[j]; files[j] = tmp;
+  render();
+}
+
+function render() {
+  filelist.innerHTML = files.map((p, i) => `
+    <li>
+      <span class="idx">${i + 1}</span>
+      <span class="name" title="${escapeHtml(p)}">${escapeHtml(basename(p))}</span>
+      <span class="ord">
+        <button class="btn small" data-up="${i}" ${i === 0 ? 'disabled' : ''}>&#9650;</button>
+        <button class="btn small" data-down="${i}" ${i === files.length - 1 ? 'disabled' : ''}>&#9660;</button>
+      </span>
+      <button class="btn small" data-remove="${i}" title="Remove">&#10005;</button>
+    </li>`).join('');
+
+  countEl.textContent = files.length === 0
+    ? 'No images added yet'
+    : `${files.length} image${files.length === 1 ? '' : 's'} ready`;
+  clearBtn.style.display = files.length ? '' : 'none';
+  createBtn.disabled = files.length === 0;
+  resultEl.textContent = '';
+  resultEl.className = 'result';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// --- list actions (event delegation) ---
+filelist.addEventListener('click', (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  if (t.dataset.remove !== undefined) removeAt(+t.dataset.remove);
+  else if (t.dataset.up !== undefined) move(+t.dataset.up, -1);
+  else if (t.dataset.down !== undefined) move(+t.dataset.down, +1);
+});
+
+clearBtn.addEventListener('click', () => { files = []; render(); });
+
+// --- add buttons ---
+$('addImagesBtn').addEventListener('click', async () => addPaths(await window.api.openImages()));
+$('addFolderBtn').addEventListener('click', async () => addPaths(await window.api.openFolder()));
+
+// --- drag & drop ---
+['dragenter', 'dragover'].forEach(ev => dropzone.addEventListener(ev, (e) => {
+  e.preventDefault(); e.stopPropagation(); dropzone.classList.add('drag');
+}));
+['dragleave', 'drop'].forEach(ev => dropzone.addEventListener(ev, (e) => {
+  e.preventDefault(); e.stopPropagation(); dropzone.classList.remove('drag');
+}));
+dropzone.addEventListener('drop', (e) => {
+  const dropped = Array.from(e.dataTransfer.files || []);
+  // Electron adds an absolute .path to dropped File objects.
+  addPaths(dropped.map(f => f.path).filter(Boolean));
+});
+// Dropping anywhere in the window shouldn't navigate away.
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => e.preventDefault());
+
+// --- progress ---
+window.api.onProgress((p) => {
+  progressEl.textContent = `Processing ${p.index} of ${p.total}: ${p.file}`;
+});
+
+// --- create ---
+createBtn.addEventListener('click', async () => {
+  if (!files.length) return;
+  createBtn.disabled = true;
+  resultEl.textContent = '';
+  resultEl.className = 'result';
+  progressEl.textContent = 'Working…';
+
+  const res = await window.api.buildPdf({
+    paths: files.slice(),
+    quality: $('quality').value,
+    labels: $('labels').checked
+  });
+
+  progressEl.textContent = '';
+  createBtn.disabled = files.length === 0;
+
+  if (res.canceled) return; // user closed the save dialog
+  if (!res.ok) {
+    resultEl.className = 'result err';
+    resultEl.textContent = res.error || 'Something went wrong.';
+    return;
+  }
+
+  const sizeKB = Math.round(res.sizeBytes / 1024);
+  const sizeText = sizeKB >= 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
+  let msg = `PDF saved — ${res.used} photo${res.used === 1 ? '' : 's'}, ${sizeText}.`;
+  if (res.skipped && res.skipped.length) {
+    msg += ` ${res.skipped.length} file${res.skipped.length === 1 ? '' : 's'} skipped.`;
+  }
+  resultEl.className = 'result ok';
+  resultEl.innerHTML = `${escapeHtml(msg)}
+    <div class="actions row">
+      <button class="btn small" id="openPdfBtn">Open PDF</button>
+      <button class="btn small" id="showPdfBtn">Show in folder</button>
+    </div>
+    ${res.skipped && res.skipped.length ? `<div class="skiplist">Skipped: ${escapeHtml(res.skipped.map(s => basename(s.file)).join(', '))}</div>` : ''}`;
+  $('openPdfBtn').addEventListener('click', () => window.api.openPath(res.savedPath));
+  $('showPdfBtn').addEventListener('click', () => window.api.showItem(res.savedPath));
+});
+
+render();

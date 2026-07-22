@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';">
+  <title>Photos to PDF</title>
+  <style>
+    :root {
+      --bg: #f4f6fa; --panel: #ffffff; --ink: #1a2233; --muted: #667085;
+      --line: #e3e8ef; --accent: #2563eb; --accent-ink: #ffffff;
+      --danger: #dc2626; --ok: #16a34a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: 'Segoe UI', system-ui, Arial, sans-serif;
+      background: var(--bg); color: var(--ink); height: 100vh; display: flex; flex-direction: column;
+    }
+    header {
+      padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line);
+      display: flex; align-items: baseline; gap: 10px;
+    }
+    header h1 { font-size: 17px; margin: 0; }
+    header .sub { color: var(--muted); font-size: 12.5px; }
+    main { flex: 1; overflow: auto; padding: 18px 20px; }
+    .dropzone {
+      border: 2px dashed var(--line); border-radius: 10px; background: var(--panel);
+      padding: 26px; text-align: center; color: var(--muted); transition: all .12s;
+    }
+    .dropzone.drag { border-color: var(--accent); background: #eff4ff; color: var(--accent); }
+    .dropzone .big { font-size: 15px; color: var(--ink); margin-bottom: 4px; }
+    .btn {
+      border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+      padding: 8px 14px; border-radius: 7px; font-size: 13.5px; cursor: pointer;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+    .btn.primary:disabled { background: #a9bef2; border-color: #a9bef2; cursor: not-allowed; }
+    .btn.small { padding: 3px 8px; font-size: 12px; }
+    .btn.link { background: none; border: none; color: var(--accent); cursor: pointer; padding: 2px 6px; }
+    .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .toolbar { margin: 14px 0 8px; justify-content: space-between; }
+    .count { color: var(--muted); font-size: 13px; }
+    ul.filelist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
+    ul.filelist:empty { display: none; }
+    ul.filelist li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 13px; }
+    ul.filelist li:first-child { border-top: none; }
+    ul.filelist li .idx { color: var(--muted); width: 26px; text-align: right; }
+    ul.filelist li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    ul.filelist li .ord { display: flex; gap: 2px; }
+    .options {
+      margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
+      border-radius: 8px; padding: 14px 16px; display: flex; gap: 22px; align-items: center; flex-wrap: wrap;
+    }
+    .options label { font-size: 13px; }
+    select { padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font-size: 13px; background: var(--panel); color: var(--ink); }
+    .hint { color: var(--muted); font-size: 12px; }
+    footer { border-top: 1px solid var(--line); background: var(--panel); padding: 14px 20px; }
+    .result { margin-top: 12px; font-size: 13.5px; }
+    .result.ok { color: var(--ok); }
+    .result.err { color: var(--danger); }
+    .result .actions { margin-top: 8px; }
+    .skiplist { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Photos to PDF</h1>
+    <span class="sub">Combine and shrink photos into one PDF you can email.</span>
+  </header>
+
+  <main>
+    <div id="dropzone" class="dropzone">
+      <div class="big">Drag photos here</div>
+      <div>or</div>
+      <div class="row" style="justify-content:center; margin-top:10px;">
+        <button class="btn" id="addImagesBtn">Add images…</button>
+        <button class="btn" id="addFolderBtn">Add a folder…</button>
+      </div>
+    </div>
+
+    <div class="row toolbar">
+      <span class="count" id="count">No images added yet</span>
+      <button class="btn link" id="clearBtn" style="display:none;">Clear all</button>
+    </div>
+
+    <ul class="filelist" id="filelist"></ul>
+
+    <div class="options">
+      <div>
+        <label for="quality">PDF image size</label><br>
+        <select id="quality">
+          <option value="balanced" selected>Balanced — clear detail (recommended)</option>
+          <option value="smaller">Smaller files — fits the most photos</option>
+          <option value="higher">Higher detail — for close-ups</option>
+        </select>
+      </div>
+      <label><input type="checkbox" id="labels" checked> Put the file name under each photo</label>
+    </div>
+  </main>
+
+  <footer>
+    <div class="row" style="justify-content: space-between;">
+      <span class="hint" id="progress"></span>
+      <button class="btn primary" id="createBtn" disabled>Create PDF</button>
+    </div>
+    <div id="result" class="result"></div>
+  </footer>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

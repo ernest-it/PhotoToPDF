@@ -1,0 +1,51 @@
+{
+  "name": "photos-to-pdf",
+  "version": "1.0.0",
+  "description": "Combine and compress local photos into a single PDF — standalone desktop app.",
+  "author": "CollisionOps",
+  "license": "MIT",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/build.test.js",
+    "dist:linux": "electron-builder --linux AppImage",
+    "dist:win": "electron-builder --win nsis portable",
+    "dist": "electron-builder --linux AppImage --win nsis portable"
+  },
+  "dependencies": {
+    "jimp": "^0.22.12",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "electron": "^31.7.7",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.collisionops.photostopdf",
+    "productName": "Photos to PDF",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Graphics"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

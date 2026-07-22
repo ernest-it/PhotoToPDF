@@ -1,0 +1,4 @@
+node_modules/
+dist/
+testdata/_sample-output.pdf
+*.log
