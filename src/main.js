@@ -5,7 +5,10 @@ const fs = require('fs');
 const path = require('path');
 const { buildPhotoPdf } = require('./pdfBuilder');
 
-const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.webp']);
+const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp'];
+const DOC_EXT = ['pdf'];
+// Everything we accept, as '.ext', for folder scanning.
+const ACCEPTED_EXT = new Set([...IMAGE_EXT, ...DOC_EXT].map(e => '.' + e));
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -41,9 +44,13 @@ app.on('window-all-closed', () => {
 ipcMain.handle('dialog:openImages', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const res = await dialog.showOpenDialog(win, {
-    title: 'Add images',
+    title: 'Add photos or PDFs',
     properties: ['openFile', 'multiSelections'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp'] }]
+    filters: [
+      { name: 'Photos and PDFs', extensions: [...IMAGE_EXT, ...DOC_EXT] },
+      { name: 'Photos', extensions: IMAGE_EXT },
+      { name: 'PDF', extensions: DOC_EXT }
+    ]
   });
   return res.canceled ? [] : res.filePaths;
 });
@@ -51,7 +58,7 @@ ipcMain.handle('dialog:openImages', async (event) => {
 ipcMain.handle('dialog:openFolder', async (event) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   const res = await dialog.showOpenDialog(win, {
-    title: 'Add a folder of images',
+    title: 'Add a folder of photos or PDFs',
     properties: ['openDirectory']
   });
   if (res.canceled || !res.filePaths.length) return [];
@@ -63,7 +70,7 @@ ipcMain.handle('dialog:openFolder', async (event) => {
     return [];
   }
   return entries
-    .filter(name => IMAGE_EXT.has(path.extname(name).toLowerCase()))
+    .filter(name => ACCEPTED_EXT.has(path.extname(name).toLowerCase()))
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     .map(name => path.join(dir, name));
 });
@@ -76,7 +83,7 @@ ipcMain.handle('pdf:build', async (event, payload) => {
   const quality = payload && payload.quality;
   const labels = !(payload && payload.labels === false);
 
-  if (!paths.length) return { ok: false, error: 'No images selected.' };
+  if (!paths.length) return { ok: false, error: 'No files selected.' };
 
   let result;
   try {
@@ -86,8 +93,8 @@ ipcMain.handle('pdf:build', async (event, payload) => {
       onProgress: (p) => { win.webContents.send('pdf:progress', p); }
     });
   } catch (e) {
-    if (e && e.message === 'NO_USABLE_IMAGES') {
-      return { ok: false, error: 'None of the selected files could be read as images.' };
+    if (e && e.message === 'NO_USABLE_FILES') {
+      return { ok: false, error: 'None of the selected files could be read as a photo or a PDF.' };
     }
     return { ok: false, error: (e && e.message) || 'Failed to build PDF.' };
   }
@@ -115,6 +122,9 @@ ipcMain.handle('pdf:build', async (event, payload) => {
     ok: true,
     savedPath: save.filePath,
     used: result.used,
+    images: result.images,
+    pdfs: result.pdfs,
+    pages: result.pages,
     skipped: result.skipped,
     sizeBytes: result.bytes.length
   };

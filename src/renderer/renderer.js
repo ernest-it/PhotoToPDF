@@ -1,11 +1,12 @@
 'use strict';
 
-// Renderer: manages the ordered list of image paths and drives the main process.
+// Renderer: manages the ordered list of file paths and drives the main process.
 // No Node access here — everything goes through window.api (see preload.js).
 
-const IMAGE_RE = /\.(jpe?g|png|gif|bmp|tiff?|webp)$/i;
+const PDF_RE = /\.pdf$/i;
+const ACCEPT_RE = /\.(jpe?g|png|gif|bmp|tiff?|webp|pdf)$/i;
 
-let files = []; // ordered array of absolute paths
+let files = []; // ordered array of absolute paths (photos and PDFs, mixed)
 
 const $ = (id) => document.getElementById(id);
 const dropzone = $('dropzone');
@@ -24,7 +25,7 @@ function basename(p) {
 function addPaths(paths) {
   let added = 0;
   for (const p of paths) {
-    if (!p || !IMAGE_RE.test(p)) continue;
+    if (!p || !ACCEPT_RE.test(p)) continue;
     if (files.includes(p)) continue; // no duplicates
     files.push(p);
     added++;
@@ -40,10 +41,15 @@ function move(i, dir) {
   render();
 }
 
+function plural(n, word) {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
+}
+
 function render() {
   filelist.innerHTML = files.map((p, i) => `
     <li>
       <span class="idx">${i + 1}</span>
+      <span class="tag ${PDF_RE.test(p) ? 'pdf' : 'img'}">${PDF_RE.test(p) ? 'PDF' : 'PHOTO'}</span>
       <span class="name" title="${escapeHtml(p)}">${escapeHtml(basename(p))}</span>
       <span class="ord">
         <button class="btn small" data-up="${i}" ${i === 0 ? 'disabled' : ''}>&#9650;</button>
@@ -52,9 +58,13 @@ function render() {
       <button class="btn small" data-remove="${i}" title="Remove">&#10005;</button>
     </li>`).join('');
 
+  const pdfCount = files.filter(p => PDF_RE.test(p)).length;
+  const imgCount = files.length - pdfCount;
   countEl.textContent = files.length === 0
-    ? 'No images added yet'
-    : `${files.length} image${files.length === 1 ? '' : 's'} ready`;
+    ? 'Nothing added yet'
+    : (pdfCount === 0 ? `${plural(imgCount, 'photo')} ready`
+      : imgCount === 0 ? `${plural(pdfCount, 'PDF')} ready`
+      : `${plural(imgCount, 'photo')} + ${plural(pdfCount, 'PDF')} ready`);
   clearBtn.style.display = files.length ? '' : 'none';
   createBtn.disabled = files.length === 0;
   resultEl.textContent = '';
@@ -127,7 +137,10 @@ createBtn.addEventListener('click', async () => {
 
   const sizeKB = Math.round(res.sizeBytes / 1024);
   const sizeText = sizeKB >= 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
-  let msg = `PDF saved — ${res.used} photo${res.used === 1 ? '' : 's'}, ${sizeText}.`;
+  const parts = [];
+  if (res.images) parts.push(plural(res.images, 'photo'));
+  if (res.pdfs) parts.push(plural(res.pdfs, 'PDF'));
+  let msg = `PDF saved — ${parts.join(' + ')}, ${plural(res.pages, 'page')}, ${sizeText}.`;
   if (res.skipped && res.skipped.length) {
     msg += ` ${res.skipped.length} file${res.skipped.length === 1 ? '' : 's'} skipped.`;
   }
@@ -137,7 +150,7 @@ createBtn.addEventListener('click', async () => {
       <button class="btn small" id="openPdfBtn">Open PDF</button>
       <button class="btn small" id="showPdfBtn">Show in folder</button>
     </div>
-    ${res.skipped && res.skipped.length ? `<div class="skiplist">Skipped: ${escapeHtml(res.skipped.map(s => basename(s.file)).join(', '))}</div>` : ''}`;
+    ${res.skipped && res.skipped.length ? `<div class="skiplist">Skipped: ${escapeHtml(res.skipped.map(s => `${basename(s.file)} (${s.reason})`).join(', '))}</div>` : ''}`;
   $('openPdfBtn').addEventListener('click', () => window.api.openPath(res.savedPath));
   $('showPdfBtn').addEventListener('click', () => window.api.showItem(res.savedPath));
 });

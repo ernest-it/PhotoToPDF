@@ -2,10 +2,11 @@
 
 # Photos to PDF
 
-**Combine a pile of photos into one small, emailable PDF.**
+**Combine a pile of photos — and your existing PDFs — into one small, emailable PDF.**
 
-Drag in your images, pick a size, get a single compressed PDF — one photo per page.
-No internet, no account, no upload. Everything happens on your computer.
+Drag in your images and any PDFs (estimates, invoices, reports), pick a size, get a
+single compressed document. No internet, no account, no upload. Everything happens
+on your computer.
 
 ![Photos to PDF](docs/screenshot.png)
 
@@ -26,11 +27,15 @@ this standalone tool so it works anywhere, on any folder of images.
 
 ## Features
 
-- **Drag & drop**, or add individual images or a whole folder.
-- **Reorder** photos and remove any you don't want before exporting.
+- **Drag & drop**, or add individual files or a whole folder.
+- **Mix photos and PDFs** — drop an estimate in front of the damage photos and ship
+  one document.
+- **Reorder** everything and remove any you don't want before exporting.
 - **Three size presets** — pick the balance of quality vs. file size you need.
 - **One photo per page**, auto‑oriented (sideways phone photos come out upright),
   with the file name printed underneath (optional).
+- **PDFs pass through untouched** — every page, at its original size and rotation,
+  with its text still selectable and searchable. Nothing is re‑compressed.
 - **Completely offline.** Your photos never leave the machine.
 - **Cross‑platform** — Windows and Linux.
 
@@ -56,13 +61,16 @@ Grab the latest build from the [**Releases**](../../releases) page.
 ## Using it
 
 1. Launch the app.
-2. Drag photos onto the window, or use **Add images…** / **Add a folder…**.
-3. Reorder with ▲ ▼, remove anything with ✕.
-4. Choose a **PDF image size** (Balanced is a good default).
+2. Drag photos and PDFs onto the window, or use **Add files…** / **Add a folder…**.
+3. Reorder with ▲ ▼, remove anything with ✕. Each row is tagged **PHOTO** or **PDF**
+   so you can see what you're shipping.
+4. Choose a **PDF image size** (Balanced is a good default). This only affects
+   photos — added PDFs are never touched.
 5. Click **Create PDF** and choose where to save it.
 6. **Open PDF** or **Show in folder** — done.
 
-Missing or unreadable files are skipped and reported; they won't stop the rest.
+Missing or unreadable files are skipped and reported with the reason; they won't
+stop the rest. Password‑protected PDFs can't be merged — remove the password first.
 
 ## Build from source
 
@@ -90,18 +98,19 @@ code‑signing certificate.
 
 ```
 src/
-  pdfBuilder.js      core: images → one compressed PDF (jimp + pdf-lib)
+  pdfBuilder.js      core: photos + PDFs → one PDF (jimp + pdf-lib)
   main.js            Electron main process: window, file dialogs, save
   preload.js         the only bridge the UI has to the system (locked down)
   renderer/          the interface (index.html + renderer.js)
 test/build.test.js   headless check of the core, no GUI
 ```
 
-The whole image pipeline is **pure JavaScript** — [`jimp`](https://github.com/jimp-dev/jimp)
+The whole pipeline is **pure JavaScript** — [`jimp`](https://github.com/jimp-dev/jimp)
 downscales and re‑encodes each photo (and applies EXIF rotation), and
-[`pdf-lib`](https://github.com/Hopding/pdf-lib) lays them out one per page. No
-native binaries, which is exactly what lets one codebase package cleanly for both
-Windows and Linux.
+[`pdf-lib`](https://github.com/Hopding/pdf-lib) lays them out one per page. Added
+PDFs take a different route: `pdf-lib` copies their pages object‑for‑object into
+the output, so vector text and embedded fonts survive intact. No native binaries,
+which is exactly what lets one codebase package cleanly for both Windows and Linux.
 
 The renderer runs sandboxed (`contextIsolation` on, `nodeIntegration` off) and can
 only reach the system through the small, explicit API defined in `preload.js`.

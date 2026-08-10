@@ -45,6 +45,12 @@
     ul.filelist li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 13px; }
     ul.filelist li:first-child { border-top: none; }
     ul.filelist li .idx { color: var(--muted); width: 26px; text-align: right; }
+    ul.filelist li .tag {
+      font-size: 10px; font-weight: 700; letter-spacing: .04em; padding: 2px 6px;
+      border-radius: 4px; width: 48px; text-align: center; flex: none;
+    }
+    ul.filelist li .tag.img { background: #eef2ff; color: #3546a8; }
+    ul.filelist li .tag.pdf { background: #fdeeee; color: #a83535; }
     ul.filelist li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     ul.filelist li .ord { display: flex; gap: 2px; }
     .options {
@@ -65,21 +71,21 @@
 <body>
   <header>
     <h1>Photos to PDF</h1>
-    <span class="sub">Combine and shrink photos into one PDF you can email.</span>
+    <span class="sub">Combine photos and PDFs — estimates, invoices — into one PDF you can email.</span>
   </header>
 
   <main>
     <div id="dropzone" class="dropzone">
-      <div class="big">Drag photos here</div>
+      <div class="big">Drag photos and PDFs here</div>
       <div>or</div>
       <div class="row" style="justify-content:center; margin-top:10px;">
-        <button class="btn" id="addImagesBtn">Add images…</button>
+        <button class="btn" id="addImagesBtn">Add files…</button>
         <button class="btn" id="addFolderBtn">Add a folder…</button>
       </div>
     </div>
 
     <div class="row toolbar">
-      <span class="count" id="count">No images added yet</span>
+      <span class="count" id="count">Nothing added yet</span>
       <button class="btn link" id="clearBtn" style="display:none;">Clear all</button>
     </div>
 
@@ -95,6 +101,7 @@
         </select>
       </div>
       <label><input type="checkbox" id="labels" checked> Put the file name under each photo</label>
+      <span class="hint">Added PDFs keep their own pages, size and text exactly as they are.</span>
     </div>
   </main>
 
