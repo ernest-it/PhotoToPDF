@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## Unreleased
+
+- **License changed from MIT to the [PolyForm Noncommercial License 1.0.0](LICENSE).**
+  Use, modification and free redistribution are still allowed for noncommercial
+  purposes, and nonprofits, schools and government bodies may use it in their work
+  — but the software may not be sold, and commercial use needs permission. Releases
+  1.0.0 and 1.1.0 remain MIT for anyone who obtained them under those terms.
+
 ## [1.1.0] — 2026-08-10
 
 - **Add existing PDFs to the document.** Estimates, invoices and reports can now be

@@ -121,4 +121,26 @@ Electron · jimp · pdf-lib · electron‑builder
 
 ## License
 
-[MIT](LICENSE)
+[PolyForm Noncommercial License 1.0.0](LICENSE).
+
+In plain English — this summary is **not** the license, the [LICENSE](LICENSE) file is:
+
+- ✅ **Use it** for personal, hobby, study or research purposes — free, forever.
+- ✅ **Modify it**, and build whatever you want on top of it, for those purposes.
+- ✅ **Share it** — copies and forks are fine, as long as they're free and you pass
+  along this license and the copyright notice with them.
+- ✅ **Nonprofits, schools, government, public safety and health organizations** may
+  use it freely, including in their day‑to‑day work.
+- ❌ **Don't sell it**, charge for copies, or bundle it into anything you sell.
+- ❌ **Don't claim you wrote it.** Keep the copyright notice on any copy you pass on.
+- ❌ **Don't use it to run a for‑profit business** without permission.
+
+**Want to use it commercially?** That's very possible — just ask first. Open an
+issue on this repo and we'll sort out a license.
+
+The third‑party libraries this app bundles (Electron, jimp, pdf‑lib and their
+dependencies) remain under **their own licenses**, which this one doesn't change.
+
+> Versions **1.0.0 and 1.1.0** were released under the MIT license. Copies obtained
+> under those terms stay MIT — that can't be taken back. Everything from this point
+> on is PolyForm Noncommercial.
