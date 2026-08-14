@@ -1,6 +1,6 @@
 {
   "name": "photos-to-pdf",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Combine local photos and existing PDFs into a single PDF — standalone desktop app.",
   "author": "CollisionOps",
   "license": "SEE LICENSE IN LICENSE",
@@ -28,7 +28,8 @@
     },
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "LICENSE"
     ],
     "linux": {
       "target": [
