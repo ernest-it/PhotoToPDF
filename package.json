@@ -1,6 +1,6 @@
 {
   "name": "photos-to-pdf",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Combine local photos and existing PDFs into a single PDF — standalone desktop app.",
   "author": "CollisionOps",
   "license": "SEE LICENSE IN LICENSE",
@@ -8,9 +8,10 @@
   "scripts": {
     "start": "electron .",
     "test": "node test/build.test.js",
-    "dist:linux": "electron-builder --linux AppImage",
-    "dist:win": "electron-builder --win nsis portable",
-    "dist": "electron-builder --linux AppImage --win nsis portable"
+    "license:txt": "node scripts/license-txt.js",
+    "dist:linux": "npm run license:txt && electron-builder --linux AppImage",
+    "dist:win": "npm run license:txt && electron-builder --win nsis portable",
+    "dist": "npm run license:txt && electron-builder --linux AppImage --win nsis portable"
   },
   "dependencies": {
     "jimp": "^0.22.12",
@@ -46,7 +47,8 @@
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "license": "build/license.txt"
     }
   }
 }

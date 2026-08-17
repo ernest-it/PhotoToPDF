@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## [1.1.2] — 2026-08-17
+
+- The **Windows installer now shows the license** and asks you to accept it before
+  installing. The text is generated from `LICENSE` at build time, so it can't drift
+  from the real terms.
+- No changes to the app itself.
+
 ## [1.1.1] — 2026-08-14
 
 No functional changes from 1.1.0 — this release exists to ship the new license.
