@@ -186,12 +186,19 @@ The third‑party libraries this app bundles (Electron, jimp, pdf‑lib,
 `@saschazar/wasm-avif`, `@cwasm/webp`, `ag-psd`, `utif` and their dependencies)
 remain under **their own licenses**, which this one doesn't change.
 
-**HEIC/AVIF decoding uses [libheif](https://github.com/strukturag/libheif)** via
-[`libheif-js`](https://github.com/catdad-experiments/libheif-js), which is
-**LGPL‑3.0**. That license is unchanged by ours: its source is available at those
-links, and because it ships as a self‑contained WebAssembly module inside
-`node_modules/libheif-js`, you can replace it with your own build of libheif
-without touching the rest of the app.
+Two of them carry obligations worth naming, both listed in full in
+[THIRD‑PARTY‑NOTICES.md](THIRD-PARTY-NOTICES.md), which ships inside the app:
+
+- **HEIC/HEIF decoding uses [libheif](https://github.com/strukturag/libheif)** via
+  [`libheif-js`](https://github.com/catdad-experiments/libheif-js), which is
+  **LGPL‑3.0**. That license is unchanged by ours: its source is available at those
+  links, and because it ships as a self‑contained WebAssembly module inside
+  `node_modules/libheif-js`, you can replace it with your own build of libheif
+  without touching the rest of the app.
+- **AVIF decoding uses [libavif](https://github.com/AOMediaCodec/libavif) and the
+  AOM AV1 decoder** (both **BSD‑2‑Clause**, plus the Alliance for Open Media Patent
+  License 1.0) via `@saschazar/wasm-avif`. That package ships no upstream notices,
+  so they are reproduced in the notices file.
 
 > Versions **1.0.0 and 1.1.0** were released under the MIT license. Copies obtained
 > under those terms stay MIT — that can't be taken back. Everything from this point

@@ -28,8 +28,13 @@ All notable changes to this project are documented here.
   RAW containers as well as JPEG.
 
 Everything stays offline and pure JavaScript/WebAssembly — no native binaries, no
-extra tools to install. HEIC and AVIF decoding uses libheif (LGPL-3.0) via
-libheif-js; see the README for the notice.
+extra tools to install.
+
+- **Added [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)**, which now ships inside
+  the app. HEIC decoding uses libheif (LGPL-3.0) and AVIF decoding uses libavif and
+  the AOM AV1 decoder (BSD-2-Clause, plus the Alliance for Open Media Patent
+  License); the AVIF package carries no upstream notices, so they are reproduced
+  there in full.
 
 ## [1.1.2] — 2026-08-17
 

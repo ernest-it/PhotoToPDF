@@ -35,7 +35,8 @@
     "files": [
       "src/**/*",
       "package.json",
-      "LICENSE"
+      "LICENSE",
+      "THIRD-PARTY-NOTICES.md"
     ],
     "linux": {
       "target": [
