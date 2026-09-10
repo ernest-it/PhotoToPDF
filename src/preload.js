@@ -6,6 +6,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
   openImages: () => ipcRenderer.invoke('dialog:openImages'),
+  acceptedExtensions: () => ipcRenderer.invoke('app:acceptedExtensions'),
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
   buildPdf: (payload) => ipcRenderer.invoke('pdf:build', payload),
   openPath: (filePath) => ipcRenderer.invoke('shell:openPath', filePath),

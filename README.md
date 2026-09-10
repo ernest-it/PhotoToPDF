@@ -30,6 +30,9 @@ this standalone tool so it works anywhere, on any folder of images.
 - **Drag & drop**, or add individual files or a whole folder.
 - **Mix photos and PDFs** — drop an estimate in front of the damage photos and ship
   one document.
+- **Reads what your phone and camera actually produce** — iPhone **HEIC**, **AVIF**,
+  **WebP**, **camera RAW** (CR2/CR3, NEF, ARW, DNG, ORF, RAF, RW2 and friends) and
+  **multi-page TIFF** scans, alongside the usual JPEG and PNG.
 - **Reorder** everything and remove any you don't want before exporting.
 - **Three size presets** — pick the balance of quality vs. file size you need.
 - **One photo per page**, auto‑oriented (sideways phone photos come out upright),
@@ -38,6 +41,27 @@ this standalone tool so it works anywhere, on any folder of images.
   with its text still selectable and searchable. Nothing is re‑compressed.
 - **Completely offline.** Your photos never leave the machine.
 - **Cross‑platform** — Windows and Linux.
+
+### Photo formats
+
+| | Formats |
+| --- | --- |
+| **Everyday** | JPEG, PNG, GIF, BMP, TIFF |
+| **Phone & modern web** | HEIC / HEIF (iPhone), HIF (Canon, Sony), AVIF, WebP |
+| **Camera RAW** | CR2, CR3, NEF, NRW, ARW, SR2, DNG, ORF, RAF, RW2, PEF, SRW, 3FR, IIQ, MRW, X3F, … |
+| **Everything else** | PSD, multi-page TIFF, TGA, QOI, PNM/PBM/PGM/PPM, ICO |
+| **Documents** | PDF (copied through untouched) |
+
+Two things worth knowing:
+
+- **Camera RAW uses the full-size JPEG preview** your camera embedded in the file,
+  not a fresh RAW conversion. That's the same picture you see on the camera's
+  screen — with the camera's own white balance and picture style baked in.
+- **A multi-page TIFF becomes multiple pages**, in order, each captioned with its
+  page number. Scanners and fax software produce these.
+
+Not supported: JPEG XL, JPEG 2000 and SVG. They're recognised and reported as
+skipped rather than silently failing.
 
 ### Size presets
 
@@ -72,6 +96,9 @@ Grab the latest build from the [**Releases**](../../releases) page.
 Missing or unreadable files are skipped and reported with the reason; they won't
 stop the rest. Password‑protected PDFs can't be merged — remove the password first.
 
+A **multi-page TIFF** turns into one PDF page per TIFF page, and a **camera RAW**
+file uses the full‑size JPEG preview the camera stored inside it.
+
 ## Build from source
 
 Requires [Node.js](https://nodejs.org/) 18+.
@@ -99,25 +126,42 @@ code‑signing certificate.
 ```
 src/
   pdfBuilder.js      core: photos + PDFs → one PDF (jimp + pdf-lib)
+  decode/            reading images: one dispatcher, one module per format family
+    index.js           sniff → decode → bitmaps (with the decoder contract)
+    sniff.js           what is this file, really? (magic bytes, not the extension)
+    heif.js            HEIC / HEIF / AVIF        webp.js    WebP
+    rawPreview.js      camera RAW previews       tiff.js    multi-page TIFF
+    psd.js             Photoshop composites      simple.js  TGA, QOI, PNM, ICO
   main.js            Electron main process: window, file dialogs, save
   preload.js         the only bridge the UI has to the system (locked down)
   renderer/          the interface (index.html + renderer.js)
-test/build.test.js   headless check of the core, no GUI
+test/                headless checks of the core and every decoder, no GUI
 ```
 
-The whole pipeline is **pure JavaScript** — [`jimp`](https://github.com/jimp-dev/jimp)
-downscales and re‑encodes each photo (and applies EXIF rotation), and
-[`pdf-lib`](https://github.com/Hopding/pdf-lib) lays them out one per page. Added
-PDFs take a different route: `pdf-lib` copies their pages object‑for‑object into
-the output, so vector text and embedded fonts survive intact. No native binaries,
-which is exactly what lets one codebase package cleanly for both Windows and Linux.
+Files are identified by **their contents, not their extension** — a `.jpg` that is
+really a PNG, or an Android `.heic` that is really AVIF, both still work. Each
+format family gets its own small decoder behind one contract, and unknown files
+fall back to hunting for an embedded JPEG preview, which is what makes most
+oddball camera formats work without special-casing them.
+
+The whole pipeline is **pure JavaScript and WebAssembly** —
+[`jimp`](https://github.com/jimp-dev/jimp) downscales and re‑encodes each photo
+(and applies EXIF rotation), [`libheif-js`](https://github.com/catdad-experiments/libheif-js),
+[`@saschazar/wasm-avif`](https://github.com/saschazar21/webassembly) and
+[`@cwasm/webp`](https://github.com/LinusU/cwasm-webp) decode HEIC, AVIF and WebP,
+and [`pdf-lib`](https://github.com/Hopding/pdf-lib) lays everything out one page at
+a time. Added PDFs take a different route: `pdf-lib` copies their pages
+object‑for‑object into the output, so vector text and embedded fonts survive intact.
+**No native binaries**, which is exactly what lets one codebase package cleanly for
+both Windows and Linux — and why RAW files are read through their embedded preview
+instead of a native RAW converter.
 
 The renderer runs sandboxed (`contextIsolation` on, `nodeIntegration` off) and can
 only reach the system through the small, explicit API defined in `preload.js`.
 
 ## Tech
 
-Electron · jimp · pdf-lib · electron‑builder
+Electron · jimp · pdf-lib · libheif-js · wasm-avif · @cwasm/webp · ag-psd · utif · electron‑builder
 
 ## License
 
@@ -138,8 +182,16 @@ In plain English — this summary is **not** the license, the [LICENSE](LICENSE)
 **Want to use it commercially?** That's very possible — just ask first. Open an
 issue on this repo and we'll sort out a license.
 
-The third‑party libraries this app bundles (Electron, jimp, pdf‑lib and their
-dependencies) remain under **their own licenses**, which this one doesn't change.
+The third‑party libraries this app bundles (Electron, jimp, pdf‑lib,
+`@saschazar/wasm-avif`, `@cwasm/webp`, `ag-psd`, `utif` and their dependencies)
+remain under **their own licenses**, which this one doesn't change.
+
+**HEIC/AVIF decoding uses [libheif](https://github.com/strukturag/libheif)** via
+[`libheif-js`](https://github.com/catdad-experiments/libheif-js), which is
+**LGPL‑3.0**. That license is unchanged by ours: its source is available at those
+links, and because it ships as a self‑contained WebAssembly module inside
+`node_modules/libheif-js`, you can replace it with your own build of libheif
+without touching the rest of the app.
 
 > Versions **1.0.0 and 1.1.0** were released under the MIT license. Copies obtained
 > under those terms stay MIT — that can't be taken back. Everything from this point

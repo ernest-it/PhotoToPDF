@@ -10,11 +10,15 @@
 // Images are downscaled and re-encoded as JPEG. PDFs (estimates, invoices,
 // reports) are copied through page-for-page at their original size and
 // quality — their text stays selectable and we never re-compress them.
+//
+// Reading the images is src/decode's job: iPhone HEIC, AVIF, WebP, camera RAW
+// and multi-page TIFF all arrive here as ordinary bitmaps.
 
 const fs = require('fs');
 const path = require('path');
 const Jimp = require('jimp');
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const { decodeImageFile } = require('./decode');
 
 // maxEdge = longest side (px) after downscale; quality = JPEG quality.
 const QUALITY_PRESETS = {
@@ -41,16 +45,16 @@ function describeFailure(err, isPdf) {
   const raw = (err && err.message) || '';
   if (/ENOENT|no such file/i.test(raw)) return 'file not found';
   if (/EACCES|EPERM|permission/i.test(raw)) return 'no permission to read it';
-  if (!isPdf) return 'not a readable image';
+  // The decoders explain themselves ("JPEG XL is not supported yet", "no
+  // preview image inside this RAW file"); anything else is library noise.
+  if (!isPdf) return err && err.userFacing ? raw : 'not a readable image';
   if (/encrypt|password/i.test(raw)) return 'password-protected PDF';
   if (/no pages/i.test(raw)) return 'PDF has no pages';
   return 'not a readable PDF';
 }
 
-// One page per image: downscale, flatten onto white, embed as JPEG.
-async function addImagePage(pdf, font, filePath, preset, showLabels) {
-  const image = await Jimp.read(filePath); // jimp applies EXIF orientation on read
-
+// One page per picture: downscale, flatten onto white, embed as JPEG.
+async function drawImagePage(pdf, font, image, preset, caption) {
   // Downscale only (never upscale a small image).
   const w = image.getWidth();
   const h = image.getHeight();
@@ -64,7 +68,12 @@ async function addImagePage(pdf, font, filePath, preset, showLabels) {
   flat.quality(preset.quality);
   const jpgBuffer = await flat.getBufferAsync(Jimp.MIME_JPEG);
 
-  const img = await pdf.embedJpg(jpgBuffer);
+  // Copy into a fresh Uint8Array: pdf-lib's JPEG embedder reads
+  // imageData.buffer without honouring byteOffset, and jimp hands back a
+  // Buffer carved out of Node's shared 8 KB pool. For any small photo that
+  // offset is non-zero and pdf-lib then reads from the pool's start and
+  // throws "SOI not found in JPEG".
+  const img = await pdf.embedJpg(new Uint8Array(jpgBuffer));
 
   // Page orientation follows the image. US Letter.
   const landscape = img.width >= img.height;
@@ -73,7 +82,7 @@ async function addImagePage(pdf, font, filePath, preset, showLabels) {
   const page = pdf.addPage([pageW, pageH]);
 
   const margin = 24;
-  const captionH = showLabels ? 22 : 0;
+  const captionH = caption ? 22 : 0;
   const availW = pageW - margin * 2;
   const availH = pageH - margin * 2 - captionH;
   const scale = Math.min(availW / img.width, availH / img.height);
@@ -86,14 +95,21 @@ async function addImagePage(pdf, font, filePath, preset, showLabels) {
     height: drawH
   });
 
-  if (showLabels) {
-    const label = sanitizeCaption(path.basename(filePath), 110);
-    if (label) {
-      page.drawText(label, { x: margin, y: margin - 2 + captionH / 2, size: 10, font, color: rgb(0.3, 0.3, 0.3) });
-    }
+  if (caption) {
+    page.drawText(caption, { x: margin, y: margin - 2 + captionH / 2, size: 10, font, color: rgb(0.3, 0.3, 0.3) });
   }
+}
 
-  return 1;
+// Most image files hold one picture, but a scanner TIFF can hold a dozen —
+// each one becomes its own page, in file order.
+async function addImagePages(pdf, font, filePath, preset, showLabels) {
+  const { images, labels } = await decodeImageFile(filePath);
+  const name = path.basename(filePath);
+  for (let i = 0; i < images.length; i++) {
+    const text = labels[i] ? `${name} - ${labels[i]}` : name;
+    await drawImagePage(pdf, font, images[i], preset, showLabels ? sanitizeCaption(text, 110) : '');
+  }
+  return images.length;
 }
 
 // Every page of an existing PDF, copied in order and untouched: original page
@@ -142,7 +158,7 @@ async function buildPhotoPdf(filePaths, options = {}) {
         pages += await addPdfPages(pdf, filePath);
         pdfs++;
       } else {
-        pages += await addImagePage(pdf, font, filePath, preset, showLabels);
+        pages += await addImagePages(pdf, font, filePath, preset, showLabels);
         images++;
       }
       used++;

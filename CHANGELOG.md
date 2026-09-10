@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented here.
 
+## [1.2.0] — 2026-09-10
+
+**Photos to PDF now reads the formats your phone and camera actually produce.**
+
+- **HEIC / HEIF** — iPhone photos work directly, no conversion step. Canon and
+  Sony `.HIF` files too.
+- **AVIF** and **WebP** — the two formats modern phones and browsers save.
+- **Camera RAW** — CR2, CR3, NEF, NRW, ARW, SR2, DNG, ORF, RAF, RW2, PEF, SRW,
+  3FR, IIQ, MRW, X3F and more. The app uses the full-size JPEG preview the camera
+  embedded in the file, so it stays fast and needs no RAW converter.
+- **Multi-page TIFF** — a scanned or faxed TIFF now becomes one PDF page per TIFF
+  page, in order, each captioned with its page number.
+- **Photoshop PSD**, plus TGA, QOI, PNM/PBM/PGM/PPM and ICO.
+- **Fixed: WebP files were never actually readable.** `.webp` had been offered in
+  the file dialog since 1.0.0, but every WebP was silently skipped as "not a
+  readable image". It now decodes properly.
+- **Files are identified by their contents, not their name.** A `.jpg` that is
+  really a PNG, or an Android `.heic` that is really AVIF, now opens instead of
+  being skipped. Unknown files are checked for an embedded preview image before
+  giving up, which is what makes the rarer camera formats work.
+- Skip reasons are more specific: "JPEG XL is not supported yet" or "no preview
+  image inside this RAW file" instead of a blanket "not a readable image".
+- Sideways photos still come out upright — orientation is now handled for HEIC and
+  RAW containers as well as JPEG.
+
+Everything stays offline and pure JavaScript/WebAssembly — no native binaries, no
+extra tools to install. HEIC and AVIF decoding uses libheif (LGPL-3.0) via
+libheif-js; see the README for the notice.
+
 ## [1.1.2] — 2026-08-17
 
 - The **Windows installer now shows the license** and asks you to accept it before

@@ -8,6 +8,7 @@ const { buildPhotoPdf } = require('../src/pdfBuilder');
 
 const dir = path.join(__dirname, '..', 'testdata');
 const fixtures = path.join(dir, '_fixtures');
+const samples = path.join(dir, 'samples');
 
 let failures = 0;
 function check(label, ok, detail) {
@@ -110,6 +111,75 @@ async function makeFixtures() {
     check('all-unusable throws', false, 'did not throw');
   } catch (e) {
     check('all-unusable throws', e.message === 'NO_USABLE_FILES', e.message);
+  }
+
+  // --- small images must not trip pdf-lib's byteOffset bug ---
+  // jimp encodes small JPEGs into Node's shared 8 KB buffer pool, so they
+  // arrive with a non-zero byteOffset; pdf-lib's JPEG embedder used to read
+  // from the pool's start and reject them as unreadable. Several in one build
+  // is what makes an offset land somewhere awkward.
+  const tinies = [];
+  for (let i = 0; i < 6; i++) {
+    const f = path.join(fixtures, `tiny-${i}.png`);
+    await new Jimp(8 + i, 8, 0x336699ff).writeAsync(f);
+    tinies.push(f);
+  }
+  const tiny = await buildPhotoPdf(tinies, { quality: 'smaller' });
+  check('small images embed (pooled-buffer regression)',
+    tiny.skipped.length === 0 && tiny.pages === tinies.length,
+    `pages=${tiny.pages} skipped=${tiny.skipped.map(x => x.reason).join('|') || 'none'}`);
+
+  // --- every committed sample format survives the whole pipeline ---
+  // The per-format suites (heif, webp, rawPreview, tiffPsd, simple) check
+  // decoding in detail; this is the net under them: whatever formats we claim
+  // to support, a real file of each must come out as at least one PDF page.
+  // Two kinds of fixture are expected NOT to render: *-bad-* is deliberately
+  // broken (truncated previews, random bytes wearing a camera extension), and
+  // *-unsupported-* is a perfectly good file in a variant we can't read (a
+  // CMYK or 16-bit PSD). They belong to the suites that own each format; here
+  // they only have to fail *politely*.
+  const allSamples = fs.existsSync(samples)
+    ? fs.readdirSync(samples).filter(f => !/\.(md|txt)$/i.test(f)).sort()
+    : [];
+  const expectSkip = f => /(^|-)(bad|unsupported)-/.test(f);
+  const sampleFiles = allSamples.filter(f => !expectSkip(f)).map(f => path.join(samples, f));
+  const badSamples = allSamples.filter(expectSkip).map(f => path.join(samples, f));
+  if (sampleFiles.length) {
+    const s = await buildPhotoPdf(sampleFiles, { quality: 'smaller', labels: true });
+    check('every committed sample format builds a page',
+      s.skipped.length === 0 && s.used === sampleFiles.length && s.pages >= sampleFiles.length,
+      `${sampleFiles.length} samples -> ${s.pages} pages` +
+      (s.skipped.length ? ' | SKIPPED: ' + s.skipped.map(x => `${path.basename(x.file)} (${x.reason})`).join(', ') : ''));
+
+    // One file at a time, so a broken format names itself instead of hiding in
+    // a pass/fail for the whole batch.
+    const broken = [];
+    for (const file of sampleFiles) {
+      try {
+        const one = await buildPhotoPdf([file], { quality: 'smaller' });
+        if (!one.pages) broken.push(`${path.basename(file)} (no pages)`);
+      } catch (e) {
+        broken.push(`${path.basename(file)} (${e.message})`);
+      }
+    }
+    check('each sample format on its own', broken.length === 0, broken.join(', ') || `${sampleFiles.length} formats`);
+  } else {
+    console.log('note  no testdata/samples/ — per-format samples not checked');
+  }
+
+  // --- broken files fail politely: skipped with a reason, never a crash ---
+  if (badSamples.length) {
+    let bad;
+    try {
+      bad = await buildPhotoPdf(badSamples, { quality: 'smaller' });
+    } catch (e) {
+      bad = { skipped: e.skipped || [], thrown: e.message };
+    }
+    const reasons = (bad.skipped || []).filter(x => x.reason && x.reason.length > 3);
+    check('unreadable samples are skipped with a reason, not a crash',
+      reasons.length === badSamples.length && (bad.thrown === 'NO_USABLE_FILES' || !bad.pages),
+      `${badSamples.length} files -> ${reasons.length} reasons | ` +
+      (bad.skipped || []).map(x => `${path.basename(x.file)}: ${x.reason}`).join(', '));
   }
 
   // Write one out so we can eyeball it.

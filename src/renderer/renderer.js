@@ -4,7 +4,18 @@
 // No Node access here — everything goes through window.api (see preload.js).
 
 const PDF_RE = /\.pdf$/i;
-const ACCEPT_RE = /\.(jpe?g|png|gif|bmp|tiff?|webp|pdf)$/i;
+
+// What we can open is decided in the main process (src/decode) — HEIC, AVIF,
+// WebP, camera RAW and the rest of the long tail. Asking for the list keeps
+// the drop filter from drifting away from the file dialogs, which is how
+// .webp ended up being offered but never actually readable.
+let accepted = new Set();
+const acceptedReady = window.api.acceptedExtensions().then(list => { accepted = new Set(list); });
+
+function isAccepted(p) {
+  const m = /\.([^.\\/]+)$/.exec(p);
+  return !!m && accepted.has(m[1].toLowerCase());
+}
 
 let files = []; // ordered array of absolute paths (photos and PDFs, mixed)
 
@@ -22,10 +33,11 @@ function basename(p) {
   return parts[parts.length - 1] || p;
 }
 
-function addPaths(paths) {
+async function addPaths(paths) {
+  await acceptedReady;
   let added = 0;
   for (const p of paths) {
-    if (!p || !ACCEPT_RE.test(p)) continue;
+    if (!p || !isAccepted(p)) continue;
     if (files.includes(p)) continue; // no duplicates
     files.push(p);
     added++;

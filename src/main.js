@@ -4,11 +4,14 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { buildPhotoPdf } = require('./pdfBuilder');
+const { IMAGE_EXT, PHOTO_EXT, RAW_EXT } = require('./decode');
 
-const IMAGE_EXT = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'tif', 'webp'];
 const DOC_EXT = ['pdf'];
 // Everything we accept, as '.ext', for folder scanning.
 const ACCEPTED_EXT = new Set([...IMAGE_EXT, ...DOC_EXT].map(e => '.' + e));
+// Camera RAW gets its own dialog filter: the list is long, and someone
+// looking for their .CR2 files should not have to read past 30 extensions.
+const RAW_FILTER_EXT = Array.from(RAW_EXT).sort();
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -48,7 +51,8 @@ ipcMain.handle('dialog:openImages', async (event) => {
     properties: ['openFile', 'multiSelections'],
     filters: [
       { name: 'Photos and PDFs', extensions: [...IMAGE_EXT, ...DOC_EXT] },
-      { name: 'Photos', extensions: IMAGE_EXT },
+      { name: 'Photos', extensions: PHOTO_EXT },
+      { name: 'Camera RAW', extensions: RAW_FILTER_EXT },
       { name: 'PDF', extensions: DOC_EXT }
     ]
   });
@@ -129,6 +133,10 @@ ipcMain.handle('pdf:build', async (event, payload) => {
     sizeBytes: result.bytes.length
   };
 });
+
+// The renderer filters dropped files by extension, so it needs the same list
+// the dialogs use rather than a second copy that can drift.
+ipcMain.handle('app:acceptedExtensions', async () => [...IMAGE_EXT, ...DOC_EXT]);
 
 ipcMain.handle('shell:openPath', async (event, filePath) => {
   return shell.openPath(filePath);
