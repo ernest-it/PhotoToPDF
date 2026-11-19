@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+- **Drag to reorder, with previews.** The file list is now a grid of thumbnails,
+  numbered in page order. Click, hold and drag a photo to move it; the others
+  slide out of the way to show where it will land, the list scrolls when you
+  drag near its edge, and Esc puts everything back. A size slider makes the
+  previews bigger or smaller.
+- Previews use the same decoder as the PDF, so HEIC, RAW and sideways photos
+  look exactly as they will on the page. PDFs show their page count, and files
+  that can't be read are flagged in red, with the reason, before you export.
+- Keyboard: arrow keys move between tiles, Alt + arrows move the selected one,
+  Delete removes it.
+- Files can now be dropped anywhere in the window, not just on the drop box,
+  which shrinks to a single line once you've added something.
+
 ## [1.2.0] — 2026-09-10
 
 **Photos to PDF now reads the formats your phone and camera actually produce.**

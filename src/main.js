@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { buildPhotoPdf } = require('./pdfBuilder');
+const { getThumbnail } = require('./thumbnail');
 const { IMAGE_EXT, PHOTO_EXT, RAW_EXT } = require('./decode');
 
 const DOC_EXT = ['pdf'];
@@ -137,6 +138,15 @@ ipcMain.handle('pdf:build', async (event, payload) => {
 // The renderer filters dropped files by extension, so it needs the same list
 // the dialogs use rather than a second copy that can drift.
 ipcMain.handle('app:acceptedExtensions', async () => [...IMAGE_EXT, ...DOC_EXT]);
+
+// Preview for one tile in the reorder grid: a downscaled JPEG data URL, a
+// page count, or the reason the file can't be read (shown before export).
+ipcMain.handle('thumb:get', async (event, filePath) => {
+  if (typeof filePath !== 'string' || !path.isAbsolute(filePath)) {
+    return { ok: false, kind: 'image', reason: 'not a file' };
+  }
+  return getThumbnail(filePath);
+});
 
 ipcMain.handle('shell:openPath', async (event, filePath) => {
   return shell.openPath(filePath);

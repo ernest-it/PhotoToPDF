@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
   <title>Photos to PDF</title>
   <style>
     :root {
@@ -28,6 +28,15 @@
     }
     .dropzone.drag { border-color: var(--accent); background: #eff4ff; color: var(--accent); }
     .dropzone .big { font-size: 15px; color: var(--ink); margin-bottom: 4px; }
+    .dropzone .or { margin: 0; }
+    .dropzone .row { justify-content: center; margin-top: 10px; }
+    /* Once there is something to arrange, the drop area shrinks to one line
+       and gives the room to the photos. */
+    .dropzone.compact { padding: 10px 14px; display: flex; align-items: center; justify-content: center; gap: 10px; text-align: left; }
+    .dropzone.compact .big { font-size: 13.5px; margin: 0; }
+    .dropzone.compact .hint, .dropzone.compact .or { display: none; }
+    .dropzone.compact .row { margin: 0; }
+    .dropzone.compact .btn { padding: 5px 11px; font-size: 12.5px; }
     .btn {
       border: 1px solid var(--line); background: var(--panel); color: var(--ink);
       padding: 8px 14px; border-radius: 7px; font-size: 13.5px; cursor: pointer;
@@ -38,21 +47,70 @@
     .btn.small { padding: 3px 8px; font-size: 12px; }
     .btn.link { background: none; border: none; color: var(--accent); cursor: pointer; padding: 2px 6px; }
     .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-    .toolbar { margin: 14px 0 8px; justify-content: space-between; }
+    .toolbar { margin: 14px 0 10px; justify-content: space-between; }
     .count { color: var(--muted); font-size: 13px; }
-    ul.filelist { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
-    ul.filelist:empty { display: none; }
-    ul.filelist li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 13px; }
-    ul.filelist li:first-child { border-top: none; }
-    ul.filelist li .idx { color: var(--muted); width: 26px; text-align: right; }
-    ul.filelist li .tag {
-      font-size: 10px; font-weight: 700; letter-spacing: .04em; padding: 2px 6px;
-      border-radius: 4px; width: 48px; text-align: center; flex: none;
+    .toolbar .hint { margin-left: 4px; }
+    .sizer { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+    .sizer input { width: 110px; accent-color: var(--accent); }
+
+    /* Reorder grid: one tile per file, in PDF order. Dragged with pointer
+       events (not HTML5 drag-and-drop) so the tile follows the cursor and the
+       others slide out of the way while you hold it. */
+    .grid {
+      --tile: 150px;
+      list-style: none; margin: 0; padding: 0; position: relative;
+      display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(var(--tile), 1fr));
     }
-    ul.filelist li .tag.img { background: #eef2ff; color: #3546a8; }
-    ul.filelist li .tag.pdf { background: #fdeeee; color: #a83535; }
-    ul.filelist li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    ul.filelist li .ord { display: flex; gap: 2px; }
+    .grid:empty { display: none; }
+    .tile {
+      display: block; list-style: none; position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+      padding: 7px 7px 6px; cursor: grab; user-select: none; touch-action: none; outline: none;
+      transition: border-color .12s, box-shadow .12s;
+    }
+    .tile:hover { border-color: #b8c6e3; box-shadow: 0 2px 8px rgba(26, 34, 51, .08); }
+    .tile:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, .25); }
+    .tile .thumb {
+      aspect-ratio: 1 / 1; border-radius: 6px; background: #eef1f6; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .tile .thumb img { max-width: 100%; max-height: 100%; display: block; pointer-events: none; -webkit-user-drag: none; }
+    .tile .thumb.loading { background: linear-gradient(100deg, #eef1f6 40%, #f7f9fc 50%, #eef1f6 60%) 0 0 / 300% 100%; animation: shimmer 1.3s linear infinite; }
+    @keyframes shimmer { to { background-position: -150% 0; } }
+    .tile .doc {
+      width: 46%; aspect-ratio: 0.77; background: #fff; border: 1px solid #e6c9c9; border-radius: 4px;
+      display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12%;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08); color: #a83535; font-weight: 700; font-size: 13px; letter-spacing: .05em;
+    }
+    .tile .bad { color: var(--danger); font-size: 11.5px; text-align: center; padding: 8px; line-height: 1.35; }
+    .tile .bad b { display: block; font-size: 20px; margin-bottom: 2px; }
+    .tile.unreadable { border-color: #f1b5b5; }
+    .tile .num {
+      position: absolute; top: 12px; left: 12px; min-width: 22px; height: 22px; padding: 0 6px;
+      border-radius: 11px; background: rgba(26, 34, 51, .78); color: #fff; font-size: 12px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .tile .pages {
+      position: absolute; bottom: 32px; right: 12px; padding: 2px 6px; border-radius: 4px;
+      background: rgba(26, 34, 51, .78); color: #fff; font-size: 10.5px; font-weight: 600;
+    }
+    .tile .remove {
+      position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 13px;
+      border: 1px solid var(--line); background: rgba(255,255,255,.95); color: var(--ink); cursor: pointer;
+      font-size: 12px; line-height: 1; opacity: 0; transition: opacity .12s;
+    }
+    .tile:hover .remove, .tile:focus-within .remove { opacity: 1; }
+    .tile .remove:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
+    .tile .name { margin-top: 6px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* The empty slot the dragged tile will land in. */
+    .tile.placeholder { border: 2px dashed var(--accent); background: #eff4ff; box-shadow: none; }
+    .tile.placeholder > * { visibility: hidden; }
+    /* The copy that follows the cursor. */
+    .tile.ghost {
+      position: fixed; left: 0; top: 0; margin: 0; z-index: 1000; pointer-events: none; cursor: grabbing;
+      border-color: var(--accent); box-shadow: 0 14px 34px rgba(26, 34, 51, .28);
+    }
+    .tile.ghost .remove { opacity: 0; }
+    body.dragging, body.dragging * { cursor: grabbing !important; }
     .options {
       margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
       border-radius: 8px; padding: 14px 16px; display: flex; gap: 22px; align-items: center; flex-wrap: wrap;
@@ -78,19 +136,25 @@
     <div id="dropzone" class="dropzone">
       <div class="big">Drag photos and PDFs here</div>
       <div class="hint">JPEG, PNG, HEIC, AVIF, WebP, TIFF, camera RAW and more</div>
-      <div>or</div>
-      <div class="row" style="justify-content:center; margin-top:10px;">
+      <div class="or">or</div>
+      <div class="row">
         <button class="btn" id="addImagesBtn">Add files…</button>
         <button class="btn" id="addFolderBtn">Add a folder…</button>
       </div>
     </div>
 
     <div class="row toolbar">
-      <span class="count" id="count">Nothing added yet</span>
-      <button class="btn link" id="clearBtn" style="display:none;">Clear all</button>
+      <span class="row" style="gap:6px;">
+        <span class="count" id="count">Nothing added yet</span>
+        <span class="hint" id="dragHint" style="display:none;">· Click and drag a photo to change the order</span>
+      </span>
+      <span class="row" id="gridTools" style="display:none;">
+        <label class="sizer" title="Preview size">Size <input type="range" id="tileSize" min="100" max="260" step="10" value="150" aria-label="Preview size"></label>
+        <button class="btn link" id="clearBtn">Clear all</button>
+      </span>
     </div>
 
-    <ul class="filelist" id="filelist"></ul>
+    <ul class="grid" id="grid" aria-label="Pages, in order. Alt+arrow keys move the selected item."></ul>
 
     <div class="options">
       <div>

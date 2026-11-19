@@ -185,4 +185,4 @@ async function buildPhotoPdf(filePaths, options = {}) {
   };
 }
 
-module.exports = { buildPhotoPdf, isPdfPath, QUALITY_PRESETS, DEFAULT_QUALITY };
+module.exports = { buildPhotoPdf, isPdfPath, describeFailure, QUALITY_PRESETS, DEFAULT_QUALITY };

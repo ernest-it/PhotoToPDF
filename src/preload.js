@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
   openImages: () => ipcRenderer.invoke('dialog:openImages'),
   acceptedExtensions: () => ipcRenderer.invoke('app:acceptedExtensions'),
   openFolder: () => ipcRenderer.invoke('dialog:openFolder'),
+  thumbnail: (filePath) => ipcRenderer.invoke('thumb:get', filePath),
   buildPdf: (payload) => ipcRenderer.invoke('pdf:build', payload),
   openPath: (filePath) => ipcRenderer.invoke('shell:openPath', filePath),
   showItem: (filePath) => ipcRenderer.invoke('shell:showItem', filePath),
