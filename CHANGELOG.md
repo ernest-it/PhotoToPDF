@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [1.3.0] — 2026-11-19
 
 - **Drag to reorder, with previews.** The file list is now a grid of thumbnails,
   numbered in page order. Click, hold and drag a photo to move it; the others
