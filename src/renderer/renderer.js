@@ -67,6 +67,25 @@ function plural(n, word) {
 // moves elements instead of rebuilding them, and a thumbnail is fetched once.
 const tiles = new Map();  // path -> <li>
 const thumbs = new Map(); // path -> thumbnail result from the main process
+// path -> clockwise turn in degrees. Kept cumulative (450, not 90) so the
+// preview always spins the way you clicked; normalised when building.
+const rotations = new Map();
+
+const normDeg = (d) => ((d % 360) + 360) % 360;
+
+function rotate(p, by) {
+  const deg = (rotations.get(p) || 0) + by;
+  rotations.set(p, deg);
+  const el = tiles.get(p);
+  if (el) applyRotation(el, deg);
+}
+
+function applyRotation(el, deg) {
+  const target = el.querySelector('.thumb img, .thumb .doc');
+  if (target) target.style.transform = deg ? `rotate(${deg}deg)` : '';
+  const n = normDeg(deg);
+  el.querySelector('.rotate').title = n ? `Rotated ${n}° — rotate again (R)` : 'Rotate clockwise (R)';
+}
 
 function tileFor(p) {
   let el = tiles.get(p);
@@ -78,7 +97,8 @@ function tileFor(p) {
   el.innerHTML = `
     <div class="thumb loading"></div>
     <span class="num"></span>
-    <button class="remove" title="Remove" aria-label="Remove ${escapeHtml(basename(p))}">&#10005;</button>
+    <button class="tile-btn rotate" title="Rotate clockwise (R)" aria-label="Rotate ${escapeHtml(basename(p))} clockwise">&#8635;</button>
+    <button class="tile-btn remove" title="Remove" aria-label="Remove ${escapeHtml(basename(p))}">&#10005;</button>
     <div class="name" title="${escapeHtml(p)}">${escapeHtml(basename(p))}</div>`;
   tiles.set(p, el);
   loadThumb(p, el);
@@ -107,6 +127,7 @@ async function loadThumb(p, el) {
     img.src = r.src;
     box.replaceChildren(img);
   }
+  applyRotation(el, rotations.get(p) || 0); // it may have been turned while loading
   if (r.ok && r.pages > 1 && !el.querySelector('.pages')) {
     el.querySelector('.name').insertAdjacentHTML('beforebegin', `<span class="pages">${r.pages} pages</span>`);
   }
@@ -117,7 +138,7 @@ function render() {
   // are already in the right slot aren't touched.
   const present = new Set(files);
   for (const [p, el] of tiles) {
-    if (!present.has(p)) { el.remove(); tiles.delete(p); }
+    if (!present.has(p)) { el.remove(); tiles.delete(p); rotations.delete(p); }
   }
   files.forEach((p, i) => {
     const el = tileFor(p);
@@ -133,7 +154,7 @@ function render() {
       : imgCount === 0 ? `${plural(pdfCount, 'PDF')} ready`
       : `${plural(imgCount, 'photo')} + ${plural(pdfCount, 'PDF')} ready`);
   gridTools.style.display = files.length ? '' : 'none';
-  dragHint.style.display = files.length > 1 ? '' : 'none';
+  dragHint.style.display = files.length ? '' : 'none';
   dropzone.classList.toggle('compact', files.length > 0);
   createBtn.disabled = files.length === 0;
   resultEl.textContent = '';
@@ -146,8 +167,10 @@ function escapeHtml(s) {
 
 const indexOfTile = (el) => files.indexOf(el.dataset.path);
 
-// --- remove button ---
+// --- rotate and remove buttons ---
 grid.addEventListener('click', (e) => {
+  const rot = e.target.closest('.rotate');
+  if (rot) { rotate(rot.closest('.tile').dataset.path, 90); return; }
   const btn = e.target.closest('.remove');
   if (!btn) return;
   const tile = btn.closest('.tile');
@@ -157,7 +180,7 @@ grid.addEventListener('click', (e) => {
   if (next) next.focus();
 });
 
-// --- keyboard: arrows move focus, Alt/Ctrl+arrows move the item, Delete removes ---
+// --- keyboard: arrows move focus, Alt/Ctrl+arrows move the item, R rotates, Delete removes ---
 grid.addEventListener('keydown', (e) => {
   const tile = e.target.closest('.tile');
   if (!tile || e.target !== tile || drag) return;
@@ -167,6 +190,12 @@ grid.addEventListener('keydown', (e) => {
     removeAt(i);
     const next = grid.children[Math.min(i, grid.children.length - 1)];
     if (next) next.focus();
+    return;
+  }
+  // R turns clockwise, Shift+R back.
+  if ((e.key === 'r' || e.key === 'R') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault();
+    if (!tile.classList.contains('unreadable')) rotate(tile.dataset.path, e.shiftKey ? -90 : 90);
     return;
   }
   // Up/down jump a whole row: count how many tiles share the first row.
@@ -195,7 +224,7 @@ let drag = null;
 grid.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 || drag) return;
   const tile = e.target.closest('.tile');
-  if (!tile || e.target.closest('.remove')) return;
+  if (!tile || e.target.closest('.tile-btn')) return;
   e.preventDefault(); // no text selection; focus is set by hand below
   tile.focus({ preventScroll: true });
   tile.setPointerCapture(e.pointerId);
@@ -398,7 +427,9 @@ createBtn.addEventListener('click', async () => {
   const res = await window.api.buildPdf({
     paths: files.slice(),
     quality: $('quality').value,
-    labels: $('labels').checked
+    labels: $('labels').checked,
+    // Only turned files, as { path: 90|180|270 }.
+    rotations: Object.fromEntries(files.map(p => [p, normDeg(rotations.get(p) || 0)]).filter(([, d]) => d))
   });
 
   progressEl.textContent = '';

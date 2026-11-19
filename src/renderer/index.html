@@ -93,13 +93,20 @@
       position: absolute; bottom: 32px; right: 12px; padding: 2px 6px; border-radius: 4px;
       background: rgba(26, 34, 51, .78); color: #fff; font-size: 10.5px; font-weight: 600;
     }
-    .tile .remove {
+    /* Rotate and remove: round buttons in the corner, shown on hover/focus. */
+    .tile .tile-btn {
       position: absolute; top: 10px; right: 10px; width: 26px; height: 26px; border-radius: 13px;
       border: 1px solid var(--line); background: rgba(255,255,255,.95); color: var(--ink); cursor: pointer;
-      font-size: 12px; line-height: 1; opacity: 0; transition: opacity .12s;
+      font-size: 12px; line-height: 1; padding: 0; opacity: 0; transition: opacity .12s;
+      display: flex; align-items: center; justify-content: center;
     }
-    .tile:hover .remove, .tile:focus-within .remove { opacity: 1; }
+    .tile .rotate { right: 40px; font-size: 15px; }
+    .tile:hover .tile-btn, .tile:focus-within .tile-btn { opacity: 1; }
     .tile .remove:hover { color: #fff; background: var(--danger); border-color: var(--danger); }
+    .tile .rotate:hover { color: #fff; background: var(--accent); border-color: var(--accent); }
+    .tile.unreadable .rotate { display: none; }
+    /* The preview turns with the photo; the square box fits it either way. */
+    .tile .thumb img, .tile .doc { transition: transform .22s cubic-bezier(.2,.7,.3,1); }
     .tile .name { margin-top: 6px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* The empty slot the dragged tile will land in. */
     .tile.placeholder { border: 2px dashed var(--accent); background: #eff4ff; box-shadow: none; }
@@ -109,7 +116,7 @@
       position: fixed; left: 0; top: 0; margin: 0; z-index: 1000; pointer-events: none; cursor: grabbing;
       border-color: var(--accent); box-shadow: 0 14px 34px rgba(26, 34, 51, .28);
     }
-    .tile.ghost .remove { opacity: 0; }
+    .tile.ghost .tile-btn { opacity: 0; }
     body.dragging, body.dragging * { cursor: grabbing !important; }
     .options {
       margin-top: 16px; background: var(--panel); border: 1px solid var(--line);
@@ -146,7 +153,7 @@
     <div class="row toolbar">
       <span class="row" style="gap:6px;">
         <span class="count" id="count">Nothing added yet</span>
-        <span class="hint" id="dragHint" style="display:none;">· Click and drag a photo to change the order</span>
+        <span class="hint" id="dragHint" style="display:none;">· Drag a photo to change the order, &#8635; to rotate it</span>
       </span>
       <span class="row" id="gridTools" style="display:none;">
         <label class="sizer" title="Preview size">Size <input type="range" id="tileSize" min="100" max="260" step="10" value="150" aria-label="Preview size"></label>

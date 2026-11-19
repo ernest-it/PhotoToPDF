@@ -34,7 +34,8 @@ this standalone tool so it works anywhere, on any folder of images.
   **WebP**, **camera RAW** (CR2/CR3, NEF, ARW, DNG, ORF, RAF, RW2 and friends) and
   **multi-page TIFF** scans, alongside the usual JPEG and PNG.
 - **See and arrange your pages** — every file appears as a thumbnail; click, hold
-  and drag to reorder, and remove any you don't want before exporting.
+  and drag to reorder, **rotate** anything that's sideways or upside down, and
+  remove any you don't want before exporting.
 - **Three size presets** — pick the balance of quality vs. file size you need.
 - **One photo per page**, auto‑oriented (sideways phone photos come out upright),
   with the file name printed underneath (optional).
@@ -89,8 +90,9 @@ Grab the latest build from the [**Releases**](../../releases) page.
 2. Drag photos and PDFs onto the window, or use **Add files…** / **Add a folder…**.
 3. Every file shows up as a preview tile, numbered in page order. **Click, hold and
    drag** a tile to move it — the others slide aside to show where it will land
-   (Esc cancels). Remove anything with ✕. Keyboard: arrow keys pick a tile,
-   **Alt + arrows** move it, **Delete** removes it. Files that can't be read are
+   (Esc cancels). Turn a sideways photo or scan with ↻ (each click is a quarter
+   turn clockwise), remove anything with ✕. Keyboard: arrow keys pick a tile,
+   **Alt + arrows** move it, **R** / **Shift + R** rotate it, **Delete** removes it. Files that can't be read are
    flagged in red before you export.
 4. Choose a **PDF image size** (Balanced is a good default). This only affects
    photos — added PDFs are never touched.

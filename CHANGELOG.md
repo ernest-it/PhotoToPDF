@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+- **Rotate photos and PDFs.** Each tile has a ↻ button that turns it a quarter turn
+  clockwise; the preview turns with it, and the PDF page comes out the same way.
+  **R** / **Shift + R** do the same from the keyboard.
+- Photos are turned before they're placed, so a photo rotated to portrait gets a
+  portrait page. PDFs are turned with the page's own rotation setting, so their
+  text stays sharp and selectable — nothing is re-rendered.
+
 ## [1.3.0] — 2026-11-19
 
 - **Drag to reorder, with previews.** The file list is now a grid of thumbnails,

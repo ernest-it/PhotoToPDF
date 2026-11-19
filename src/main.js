@@ -87,6 +87,8 @@ ipcMain.handle('pdf:build', async (event, payload) => {
   const paths = Array.isArray(payload && payload.paths) ? payload.paths : [];
   const quality = payload && payload.quality;
   const labels = !(payload && payload.labels === false);
+  // { [path]: degrees clockwise }; the builder normalises the values.
+  const rotations = payload && payload.rotations && typeof payload.rotations === 'object' ? payload.rotations : {};
 
   if (!paths.length) return { ok: false, error: 'No files selected.' };
 
@@ -95,6 +97,7 @@ ipcMain.handle('pdf:build', async (event, payload) => {
     result = await buildPhotoPdf(paths, {
       quality,
       labels,
+      rotations,
       onProgress: (p) => { win.webContents.send('pdf:progress', p); }
     });
   } catch (e) {

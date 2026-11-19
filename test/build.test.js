@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const Jimp = require('jimp');
 const { PDFDocument, PDFName, rgb } = require('pdf-lib');
-const { buildPhotoPdf } = require('../src/pdfBuilder');
+const { buildPhotoPdf, normRotation } = require('../src/pdfBuilder');
 
 const dir = path.join(__dirname, '..', 'testdata');
 const fixtures = path.join(dir, '_fixtures');
@@ -104,6 +104,50 @@ async function makeFixtures() {
   check('bad image + bad PDF skipped',
     withBad.skipped.length === 2 && withBad.pages === images.length,
     withBad.skipped.map(s => `${path.basename(s.file)}: ${s.reason}`).join(' | '));
+
+  // --- rotation: the page must come out the way the preview was turned ---
+  // A landscape picture with a red top-left corner, so direction is visible.
+  const marked = path.join(fixtures, 'marked.png');
+  const mk = new Jimp(300, 200, 0xffffffff);
+  mk.scan(0, 0, 100, 60, (x, y, idx) => { mk.bitmap.data.writeUInt32BE(0xff0000ff, idx); });
+  await mk.writeAsync(marked);
+
+  // Embedded photo of page 0, plus where its red corner ended up.
+  async function photoOnPage(bytes, n) {
+    const doc = await PDFDocument.load(bytes);
+    const page = doc.getPage(n);
+    const xo = page.node.Resources().lookup(PDFName.of('XObject'));
+    const img = await Jimp.read(Buffer.from(xo.lookup(xo.keys()[0]).contents));
+    const w = img.getWidth(), h = img.getHeight();
+    const red = (x, y) => { const c = Jimp.intToRGBA(img.getPixelColor(x, y)); return c.r > 200 && c.g < 80; };
+    const corner = red(5, 5) ? 'top-left' : red(w - 6, 5) ? 'top-right' : red(w - 6, h - 6) ? 'bottom-right' : red(5, h - 6) ? 'bottom-left' : 'none';
+    return { w, h, corner, page: page.getSize() };
+  }
+
+  const turns = { 0: 'top-left', 90: 'top-right', 180: 'bottom-right', 270: 'bottom-left' };
+  for (const [deg, expected] of Object.entries(turns)) {
+    const rb = await buildPhotoPdf([marked], { labels: false, rotations: { [marked]: Number(deg) } });
+    const p = await photoOnPage(rb.bytes, 0);
+    const portrait = deg === '90' || deg === '270';
+    check(`photo rotated ${deg}° clockwise`,
+      p.corner === expected && (p.h > p.w) === portrait && (p.page.height > p.page.width) === portrait,
+      `corner ${p.corner}, image ${p.w}x${p.h}, page ${p.page.width}x${p.page.height}`);
+  }
+  const anti = await photoOnPage((await buildPhotoPdf([marked], { labels: false, rotations: { [marked]: -90 } })).bytes, 0);
+  check('-90 is the same as 270', anti.corner === 'bottom-left', anti.corner);
+
+  // PDFs turn by their /Rotate entry: same page size, still text, nothing rasterised.
+  const rp = await buildPhotoPdf([images[0], estimate], { rotations: { [estimate]: 90 } });
+  const rdoc = await PDFDocument.load(rp.bytes);
+  const angles = rdoc.getPages().map(pg => pg.getRotation().angle);
+  const estPage = rdoc.getPage(1);
+  check('PDF pages rotated, photo untouched',
+    angles.join(',') === '0,90,90' && estPage.getWidth() === 595 && estPage.getHeight() === 842 &&
+      ((estPage.node.Resources().lookup(PDFName.of('XObject')) || { keys: () => [] }).keys().length === 0),
+    `angles ${angles.join(',')}`);
+
+  check('rotation values normalised',
+    normRotation(-90) === 270 && normRotation(450) === 90 && normRotation('x') === 0 && normRotation(undefined) === 0);
 
   // --- nothing usable -> throws ---
   try {

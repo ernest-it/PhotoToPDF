@@ -17,7 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const Jimp = require('jimp');
-const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const { PDFDocument, StandardFonts, rgb, degrees } = require('pdf-lib');
 const { decodeImageFile } = require('./decode');
 
 // maxEdge = longest side (px) after downscale; quality = JPEG quality.
@@ -27,6 +27,12 @@ const QUALITY_PRESETS = {
   higher:   { maxEdge: 2048, quality: 82 }
 };
 const DEFAULT_QUALITY = 'balanced';
+
+// A user-chosen turn, clockwise, as 0/90/180/270. Anything else is 0.
+function normRotation(value) {
+  const n = Math.round(Number(value) / 90) * 90;
+  return Number.isFinite(n) ? ((n % 360) + 360) % 360 : 0;
+}
 
 function isPdfPath(filePath) {
   return path.extname(String(filePath || '')).toLowerCase() === '.pdf';
@@ -102,10 +108,14 @@ async function drawImagePage(pdf, font, image, preset, caption) {
 
 // Most image files hold one picture, but a scanner TIFF can hold a dozen —
 // each one becomes its own page, in file order.
-async function addImagePages(pdf, font, filePath, preset, showLabels) {
+// `rotation` is the user's turn on top of the file's own orientation (which
+// the decoder has already applied), so the page matches what the preview showed.
+async function addImagePages(pdf, font, filePath, preset, showLabels, rotation) {
   const { images, labels } = await decodeImageFile(filePath);
   const name = path.basename(filePath);
   for (let i = 0; i < images.length; i++) {
+    // Jimp turns counter-clockwise; multiples of 90 are exact pixel moves.
+    if (rotation) images[i].rotate(-rotation);
     const text = labels[i] ? `${name} - ${labels[i]}` : name;
     await drawImagePage(pdf, font, images[i], preset, showLabels ? sanitizeCaption(text, 110) : '');
   }
@@ -115,8 +125,9 @@ async function addImagePages(pdf, font, filePath, preset, showLabels) {
 // Every page of an existing PDF, copied in order and untouched: original page
 // size, rotation, vector text and embedded fonts all preserved. No caption is
 // drawn — the source page already uses its full area, and stamping over it
-// would cover real content.
-async function addPdfPages(pdf, filePath) {
+// would cover real content. A user rotation only changes each page's
+// /Rotate entry, so the content is never re-rendered.
+async function addPdfPages(pdf, filePath, rotation) {
   const srcBytes = fs.readFileSync(filePath);
   // Not ignoreEncryption: pdf-lib cannot decrypt, so "loading" a protected PDF
   // would copy unreadable pages. Better to throw here and skip the file.
@@ -124,13 +135,17 @@ async function addPdfPages(pdf, filePath) {
   const indices = src.getPageIndices();
   if (!indices.length) throw new Error('PDF has no pages');
   const pages = await pdf.copyPages(src, indices);
-  for (const page of pages) pdf.addPage(page);
+  for (const page of pages) {
+    if (rotation) page.setRotation(degrees(normRotation(page.getRotation().angle + rotation)));
+    pdf.addPage(page);
+  }
   return pages.length;
 }
 
 /**
  * @param filePaths  absolute paths to images and/or PDFs, in the order they should appear
- * @param options    { quality: 'smaller'|'balanced'|'higher', labels: boolean, onProgress: fn }
+ * @param options    { quality: 'smaller'|'balanced'|'higher', labels: boolean, onProgress: fn,
+ *                     rotations: { [path]: 90|180|270 } — clockwise turn per file }
  * @returns          { bytes, used, images, pdfs, pages, skipped: [{file, reason}] }
  * @throws           Error('NO_USABLE_FILES') if nothing could be rendered
  */
@@ -138,6 +153,7 @@ async function buildPhotoPdf(filePaths, options = {}) {
   const preset = QUALITY_PRESETS[options.quality] || QUALITY_PRESETS[DEFAULT_QUALITY];
   const showLabels = options.labels !== false; // default on
   const onProgress = typeof options.onProgress === 'function' ? options.onProgress : () => {};
+  const rotations = options.rotations && typeof options.rotations === 'object' ? options.rotations : {};
 
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
@@ -155,10 +171,10 @@ async function buildPhotoPdf(filePaths, options = {}) {
     onProgress({ index, total: filePaths.length, file: path.basename(filePath), kind: isPdf ? 'pdf' : 'image' });
     try {
       if (isPdf) {
-        pages += await addPdfPages(pdf, filePath);
+        pages += await addPdfPages(pdf, filePath, normRotation(rotations[filePath]));
         pdfs++;
       } else {
-        pages += await addImagePages(pdf, font, filePath, preset, showLabels);
+        pages += await addImagePages(pdf, font, filePath, preset, showLabels, normRotation(rotations[filePath]));
         images++;
       }
       used++;
@@ -185,4 +201,4 @@ async function buildPhotoPdf(filePaths, options = {}) {
   };
 }
 
-module.exports = { buildPhotoPdf, isPdfPath, describeFailure, QUALITY_PRESETS, DEFAULT_QUALITY };
+module.exports = { buildPhotoPdf, isPdfPath, describeFailure, normRotation, QUALITY_PRESETS, DEFAULT_QUALITY };
