@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here.
 
-## [Unreleased]
+## [1.3.1] — 2026-11-19
 
 - **Rotate photos and PDFs.** Each tile has a ↻ button that turns it a quarter turn
   clockwise; the preview turns with it, and the PDF page comes out the same way.
