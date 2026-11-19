@@ -8,7 +8,7 @@ Drag in your images and any PDFs (estimates, invoices, reports), pick a size, ge
 single compressed document. No internet, no account, no upload. Everything happens
 on your computer.
 
-![Photos to PDF](docs/screenshot.png)
+![Photos to PDF: dragging an estimate PDF to the front, between preview tiles of damage photos](docs/screenshot.png)
 
 </div>
 
@@ -96,6 +96,19 @@ Grab the latest build from the [**Releases**](../../releases) page.
    photos — added PDFs are never touched.
 5. Click **Create PDF** and choose where to save it.
 6. **Open PDF** or **Show in folder** — done.
+
+<table>
+  <tr>
+    <td width="33%"><img src="docs/screenshot-empty.png" alt="The start screen: a drop area with Add files and Add a folder buttons"></td>
+    <td width="33%"><img src="docs/screenshot-large.png" alt="Large previews, with a damaged photo flagged in red before export"></td>
+    <td width="33%"><img src="docs/screenshot-saved.png" alt="After Create PDF: PDF saved, with Open PDF and Show in folder buttons"></td>
+  </tr>
+  <tr>
+    <td><sub>Drop files in, or pick them.</sub></td>
+    <td><sub>Drag the <b>Size</b> slider for bigger previews. Files that can't be read are flagged before you export.</sub></td>
+    <td><sub>One PDF, ready to email.</sub></td>
+  </tr>
+</table>
 
 Missing or unreadable files are skipped and reported with the reason; they won't
 stop the rest. Password‑protected PDFs can't be merged — remove the password first.
